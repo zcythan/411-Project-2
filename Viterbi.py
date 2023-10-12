@@ -84,7 +84,8 @@ def main():
     if len(sys.argv) < 3:
         print("Too few input arguments")
         return
-
+    # train call
+    # predict call
     test = Viterbi(sys.argv[1])
     #test.removeTags()
     print(test.score("manville", "/NP"))
@@ -95,6 +96,7 @@ def main():
     for key, value in test.wordTagCounts.items():
         print(f"{key}: {value}")
     '''
+
 
 if __name__ == "__main__":
     main()
