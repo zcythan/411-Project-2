@@ -20,17 +20,27 @@ class Viterbi:
 
     def __init__(self, file):
         self.__file = file
-        self.wordTagCounts, self.tagCounts = self.__getTagCounts()  # CHANGE THIS TO PRIVATE
-        self.tagsForWords = self.__getTagsForWords()  # CHANGE TO PRIVATE
+        #Only read the file one time.
+        self.__wordTagCounts, self.__tagCounts, self.tagForTagCounts, self.__startTagCounts, self.__lineCount = self.__getCounts()  # CHANGE THIS TO PRIVATE
+        self.__tagsForWords = self.__getTagsForWords()
 
-    def wordGivenTag(self, word, tag):  # MAKE PRIVATE
-        tagCount = self.tagCounts.get(tag, -1)
-        wordTagCount = self.wordTagCounts.get(word+tag, -1)  # Line 38 comment pertains to this.
-        return wordTagCount/tagCount
+    #Calculates the probability a tag starts a sentence,
+    #as there's no beginning of sentence tag in the data.
+    def __tagStarts(self, tag):
+        return self.__startTagCounts.get(tag, -1) / self.__lineCount
 
+    #Calculates the probability of a tag given a tag.
+    def __tagGivenTag(self, tag, prevTag):
+        return self.tagForTagCounts.get(tag+prevTag, -1)/self.__tagCounts.get(prevTag)
+
+    # Calculates the probability of word given a tag
+    def __wordGivenTag(self, word, tag):
+        return self.__wordTagCounts.get(word+tag, -1)/self.__tagCounts.get(tag, -1)
+
+    #Makes list of tags a word has been seen as.
     def __getTagsForWords(self):
         wordTagDict = {}
-        wordtags = list(self.wordTagCounts.keys())
+        wordtags = list(self.__wordTagCounts.keys())
         for elem in wordtags:
             word, tag = elem.split('/')
             if word not in wordTagDict:
@@ -44,7 +54,7 @@ class Viterbi:
             with open("POS.test.out", 'w') as outp:
                 for line in inp:
                     words = line.split()
-                    tags = set(self.tagCounts)
+                    tags = set(self.__tagCounts)
                     for i in range(len(words)):
                         for tag in tags:
                             if tag in words[i]:
@@ -58,26 +68,50 @@ class Viterbi:
             return line
         return line[:index].replace('/', '') + line[index:]
 
-    def __getTagCounts(self):
+    def __getCounts(self):
         tagDict = {}
         wordTagDict = {}
+        tag4TagDict = {}
+        firstTagDict = {}
+        lineCount = 0
         with open(self.__file, 'r') as inp:
             for line in inp:
+                lineCount += 1
+                #Using /BEG to notate beginning of sentence
+                prevTag = ""
                 words = line.split()
                 for word in words:
                     if '/' in word:
                         tag = self.__removeExtra(word)
+                        #First half cast to lowercase, reduce duplicates.
                         tag = tag[0:tag.rfind('/')].lower() + tag[tag.rfind('/'):]
+                        #Count occurrence of tags given a word.
                         if tag in wordTagDict:
                             wordTagDict[tag] += 1
                         else:
                             wordTagDict[tag] = 1
                         tag = tag[tag.rfind('/'):]
+                        #Count occurrence of tags.
                         if tag in tagDict:
                             tagDict[tag] += 1
                         else:
                             tagDict[tag] = 1
-        return wordTagDict, tagDict
+                        # Count occurrence of tags starting a sentence.
+                        if prevTag == "":
+                            if tag in firstTagDict:
+                                firstTagDict[tag] += 1
+                            else:
+                                firstTagDict[tag] = 1
+                        #Count occurrence of tags given a previous tag.
+                        else:
+                            combTag = tag + prevTag
+                            if combTag in tag4TagDict:
+                                tag4TagDict[combTag] += 1
+                            else:
+                                tag4TagDict[combTag] = 1
+                        prevTag = tag
+
+        return wordTagDict, tagDict, tag4TagDict, firstTagDict, lineCount
 
 
 def main():
@@ -88,14 +122,10 @@ def main():
     # predict call
     test = Viterbi(sys.argv[1])
     #test.removeTags()
-    print(test.wordGivenTag("manville", "/NP"))
-    print(test.tagCounts.get("/NP", -1))
-    print(test.wordTagCounts.get("manville/NP", -1))
+    print(test.tagGivenTag("/JJ", "/PP$"))
 
-    '''
-    for key, value in test.wordTagCounts.items():
-        print(f"{key}: {value}")
-    '''
+    for key, value in test.tagForTagCounts.items():
+        print(f"{key} {value}")
 
 
 if __name__ == "__main__":
