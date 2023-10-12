@@ -46,15 +46,6 @@ class Viterbi:
         return line[:index].replace('/', '') + line[index:]
 
     def __getTagCounts(self):
-        with open(self.__file, 'r') as file:
-            line_count = sum(1 for line in file)
-        print(f"Total lines in the file: {line_count}")
-
-        with open(self.__file, 'r') as file:
-            for line_number, line in enumerate(file, start=1):  # starting the line numbers from 1
-                if "down/IN|RB" in line:  # Adjust for other problematic words/tags
-                    print(f"Line {line_number}: {line.strip()}")
-
         tagDict = {}
         with open(self.__file, 'r') as inp:
             for line in inp:
@@ -63,54 +54,13 @@ class Viterbi:
                     if '/' in word:
                         tag = self.__removeExtra(word)
                         tag = tag[tag.rfind('/'):]
-                        if "|VBN" in tag or "|RB" in tag:
-                            print(f"Problematic line: {line.strip()}, Word: {word}, Tag: {tag}")
                         if tag in tagDict:
                             tagDict[tag] += 1
                         else:
                             tagDict[tag] = 1
         return tagDict
 
-'''
-    def __getTagCounts(self):
-        tagDict = {}
-        with open(self.__file, 'r') as inp:
-            for line in inp:
-                words = line.split()
-                for word in words:
-                    tag = ""
-                    if '/' in word:
-                        tag = self.__removeExtra(word)
-                        tag = tag[tag.rfind('/'):]
-                        if tag in tagDict:
-                            tagDict[tag] += 1
-                        else:
-                            tagDict[tag] = 1
-        return tagDict
-'''
-'''
-    def __getTagCounts(self):
-        tagDict = {}
-        with open(self.__file, 'r') as inp:
-            for line in inp:
-                newline = line
-                for i in range(len(line)):
-                    tag = ""
-                    if line[i] == '/':
-                        temp = line[i:]
-                        for char in temp:
-                            if char != " ":
-                                tag = tag + char
-                            else:
-                                break
-                    if tag != "":
-                        tag = self.__removeExtra(tag)
-                        if tag in tagDict:
-                            tagDict[tag] += 1
-                        else:
-                            tagDict[tag] = 1
-        return tagDict
-'''
+
 def main():
     if len(sys.argv) < 3:
         print("Too few input arguments")
