@@ -23,7 +23,7 @@ class Viterbi:
         self.wordTagCounts, self.tagCounts = self.__getTagCounts()  # CHANGE THIS TO PRIVATE
         self.tagsForWords = self.__getTagsForWords()  # CHANGE TO PRIVATE
 
-    def score(self, word, tag):  # MAKE PRIVATE
+    def wordGivenTag(self, word, tag):  # MAKE PRIVATE
         tagCount = self.tagCounts.get(tag, -1)
         wordTagCount = self.wordTagCounts.get(word+tag, -1)  # Line 38 comment pertains to this.
         return wordTagCount/tagCount
@@ -88,7 +88,7 @@ def main():
     # predict call
     test = Viterbi(sys.argv[1])
     #test.removeTags()
-    print(test.score("manville", "/NP"))
+    print(test.wordGivenTag("manville", "/NP"))
     print(test.tagCounts.get("/NP", -1))
     print(test.wordTagCounts.get("manville/NP", -1))
 
