@@ -40,9 +40,7 @@ class Viterbi:
                         words.append(word)
                     i = 0
                     for word in words:
-                        # full = self.__removeExtra(part)
                         # First half cast to lowercase, reduce duplicates.
-                        # word = full[0:full.rfind('/')].lower()
                         potTags = self.__tagsForWords.get(word, 0)
                         # Initialization
                         score[i] = []
