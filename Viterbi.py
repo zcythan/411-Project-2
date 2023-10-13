@@ -1,21 +1,6 @@
 #Insert Generic comment about system libraries being allowed
 import sys
 
-# For the first word
-# Score function that calculates prob of a word given a tag * Prob of tag given previous tag (beginning sentence)
-# backptr points to the tag that has given the current max probability
-
-# For the rest of the words
-# for each possible tag for one selected word
-# prob of a word given a tag * Max of (Score of prev word * prob of tag given potential previous tag)
-# - take the Max of the previous score * prob of Current known tag GIVEN a potential prev tag.
-# - aka look thru list of tags the previous word could have been. Calculate these (*prevscore) and choose the largest one.
-# Back pointer is updated with the tag from prev word that was chosen for max.
-# - so if a noun had the highest max, store noun.
-
-# We find the tag that yields the maximum score. So we have done this logic for each tag a word could be.
-# - and now we find which of those had the highest score value, so we now know what tag should belong to this word
-# For back pointer, we go back through
 class Viterbi:
 
     def __init__(self, file):
@@ -41,40 +26,69 @@ class Viterbi:
 
     def predict(self, file):
         with open(self.__file, 'r') as data:
-            for line in data:
-                score = {}
-                backPtr = {}
-                words = line.split()
-                i = 0
-                for part in words:
-                    if '/' in part:
+            with open(file, 'w') as outp:
+                for line in data:
+                    score = {}
+                    backPtr = {}
+                    seq = []
+                    wordsRaw = line.split()
+                    words = []
+                    #Cleaning
+                    for part in wordsRaw:
                         full = self.__removeExtra(part)
-                        # First half cast to lowercase, reduce duplicates.
                         word = full[0:full.rfind('/')].lower()
+                        words.append(word)
+                    i = 0
+                    for word in words:
+                        # full = self.__removeExtra(part)
+                        # First half cast to lowercase, reduce duplicates.
+                        # word = full[0:full.rfind('/')].lower()
                         potTags = self.__tagsForWords.get(word, 0)
-                        #Initialization
+                        # Initialization
                         score[i] = []
                         if i == 0:
                             for tag in potTags:
-                                score[0].append(tag, self.__wordGivenTag(word, tag) * self.__tagStarts(tag))
+                                score[0].append((tag, self.__wordGivenTag(word, tag) * self.__tagStarts(tag)))
                             backPtr[0] = 0
                             i = 1
                             continue
-                        #Iteration step
+                        # Iteration step
                         for tag in potTags:
-                            #max was reserved :(
+                            # max was reserved :(
                             maxNum = 0
                             goodTag = ""
-                            for prevTag, prevScore in score[i-1]:
+                            for prevTag, prevScore in score[i - 1]:
                                 temp = prevScore * self.__tagGivenTag(tag, prevTag)
                                 if temp > maxNum:
                                     goodTag = prevTag
                                     maxNum = temp
-                            score[i].append(tag, self.__wordGivenTag(word, tag) * maxNum)
-                            backPtr[i-1] = goodTag
-                        #Sequence Identification
-                        
-
+                            score.setdefault(i, []).append((tag, self.__wordGivenTag(word, tag) * maxNum))
+                            #backPtr[i] = goodTag
+                            if i not in backPtr:
+                                backPtr[i] = {}
+                            backPtr[i][tag] = goodTag
+                            i += 1
+                    # Sequence Identification
+                    lastScores = score[len(words)-1]
+                    lastTag = ""
+                    lastScore = 0
+                    for t, s in lastScores:
+                        lastTag = t
+                        if s > lastScore:
+                            lastScore = s
+                            lastTag = t
+                    seq.append(lastTag)
+                    curTag = lastTag
+                    for i in range(len(words) - 1, 0, -1):
+                        curTag = backPtr[i][curTag]
+                        seq.append(curTag)
+                    '''
+                    for tag in backPtr:
+                        if tag != 0:
+                            seq.append(tag)
+                            '''
+                    seq.reverse()
+                    outp.write(' '.join(seq))
 
     #Makes list of tags a word has been seen as.
     def __getTagsForWords(self):
@@ -160,10 +174,7 @@ def main():
     # predict call
     test = Viterbi(sys.argv[1])
     #test.removeTags()
-    print(test.tagGivenTag("/JJ", "/PP$"))
-
-    for key, value in test.tagForTagCounts.items():
-        print(f"{key} {value}")
+    test.predict(sys.argv[2])
 
 
 if __name__ == "__main__":
