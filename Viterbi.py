@@ -21,7 +21,7 @@ class Viterbi:
     def __init__(self, file):
         self.__file = file
         #Only read the file one time.
-        self.__wordTagCounts, self.__tagCounts, self.tagForTagCounts, self.__startTagCounts, self.__lineCount = self.__getCounts()  # CHANGE THIS TO PRIVATE
+        self.__wordTagCounts, self.__tagCounts, self.__tagForTagCounts, self.__startTagCounts, self.__lineCount = self.__getCounts()  # CHANGE THIS TO PRIVATE
         self.__tagsForWords = self.__getTagsForWords()
 
     #Calculates the probability a tag starts a sentence,
@@ -33,7 +33,7 @@ class Viterbi:
 
     #Calculates the probability of a tag given a tag.
     def __tagGivenTag(self, tag, prevTag):
-        return self.tagForTagCounts.get(tag+prevTag, 0)/self.__tagCounts.get(prevTag, 0)
+        return self.__tagForTagCounts.get(tag+prevTag, 0)/self.__tagCounts.get(prevTag, 0)
 
     # Calculates the probability of word given a tag
     def __wordGivenTag(self, word, tag):
@@ -42,24 +42,38 @@ class Viterbi:
     def predict(self, file):
         with open(self.__file, 'r') as data:
             for line in data:
-                init = True
                 score = {}
                 backPtr = {}
                 words = line.split()
+                i = 0
                 for part in words:
                     if '/' in part:
                         full = self.__removeExtra(part)
                         # First half cast to lowercase, reduce duplicates.
-                        word = tag[0:full.rfind('/')].lower()
-                        #tag = tag[tag.rfind('/'):]
+                        word = full[0:full.rfind('/')].lower()
+                        potTags = self.__tagsForWords.get(word, 0)
                         #Initialization
-                        if init:
-                            potTags = self.__tagsForWords.get(word, 0)
+                        score[i] = []
+                        if i == 0:
                             for tag in potTags:
                                 score[0].append(tag, self.__wordGivenTag(word, tag) * self.__tagStarts(tag))
-                                backPtr = 0
-
-                            init = False
+                            backPtr[0] = 0
+                            i = 1
+                            continue
+                        #Iteration step
+                        for tag in potTags:
+                            #max was reserved :(
+                            maxNum = 0
+                            goodTag = ""
+                            for prevTag, prevScore in score[i-1]:
+                                temp = prevScore * self.__tagGivenTag(tag, prevTag)
+                                if temp > maxNum:
+                                    goodTag = prevTag
+                                    maxNum = temp
+                            score[i].append(tag, self.__wordGivenTag(word, tag) * maxNum)
+                            backPtr[i-1] = goodTag
+                        #Sequence Identification
+                        
 
 
     #Makes list of tags a word has been seen as.
