@@ -109,18 +109,6 @@ class Viterbi:
             wordTagDict[word].append('/' + tag)
         return wordTagDict
 
-    def removeTags(self):
-        with open(self.__file, 'r') as inp:
-            with open("POS.test.out", 'w') as outp:
-                for line in inp:
-                    words = line.split()
-                    tags = set(self.__tagCounts)
-                    for i in range(len(words)):
-                        for tag in tags:
-                            if tag in words[i]:
-                                words[i] = words[i].replace(tag, "")
-                    outp.write(' '.join(words))
-
     @staticmethod
     def __removeExtra(line):
         index = line.rfind('/')
@@ -197,8 +185,6 @@ def main():
     if len(sys.argv) < 3:
         print("Too few input arguments")
         return
-    # train call
-    # predict call
     AI = Viterbi(sys.argv[1])
     AI.predict(sys.argv[2])
     print(AI.getAccuracy(sys.argv[2]))
