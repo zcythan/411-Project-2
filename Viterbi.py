@@ -27,6 +27,7 @@ class Viterbi:
             return -math.inf
         return self.__wordTagCounts.get(word+tag, 0)/self.__tagCounts.get(tag, 0)
 
+    #I despise how long this function is, but it's more effort than it's worth to split it up.
     def predict(self, file):
         with open(file, 'r') as data:
             with open("POS.test.out", 'w') as outp:
@@ -55,11 +56,12 @@ class Viterbi:
                         # Iteration step
                         for tag in potTags:
                             index = (tag, w)
-                            # max was reserved :(
+                            #max was reserved :(
                             maxScore = (-math.inf)
                             goodTag = ""
-                            #given word -1, find that word, get list of potential tags for that word, score[iterator for all prevword tags][w-1 index]
                             prevWord = words[w-1]
+                            #Not sure how we were intended to handle cases the prediction word was never observed in training.
+                            #My approach is to use an "unknown" tag for these words.
                             prevTags = self.__tagsForWords.get(prevWord, ["/UKN"])
                             for prevTag in prevTags:
                                 if prevTag == "/UKN":
@@ -78,8 +80,7 @@ class Viterbi:
                     #Sequence Identification
                     #0 wasn't quite small enough
                     maxScore = -math.inf
-                    #Not sure how we were intended to handle cases the prediction word was never observed in training.
-                    #My approach is to use an "unknown" tag for these words.
+                    #Using our unknown tag for placeholder.
                     lastTag = "/UKN"
                     for tag in potTags:
                         temp = score[(tag, len(words) - 1)]
@@ -87,10 +88,12 @@ class Viterbi:
                             maxScore = temp
                             lastTag = tag
                     seq.insert(0, lastTag)
-                    for w in range(len(words) - 2, -1, -1):  # Start from the penultimate word and go backwards
+                    #Iterating from second to last word backwards
+                    for w in range(len(words) - 2, -1, -1):
                         bestTag = backPtr[(lastTag, w + 1)]
-                        seq.insert(0, bestTag)  # Add this tag to the beginning of the sequence
-                        lastTag = bestTag  # Update for the next iteration
+                        #populate the seq backwards, hope that is acceptable.
+                        seq.insert(0, bestTag)
+                        lastTag = bestTag
 
                     for i in range(len(seq)):
                         outp.write(words[i] + seq[i] + " ")
