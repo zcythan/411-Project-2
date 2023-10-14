@@ -28,6 +28,7 @@ class Viterbi:
         return self.__wordTagCounts.get(word+tag, 0)/self.__tagCounts.get(tag, 0)
 
     #I despise how long this function is, but it's more effort than it's worth to split it up.
+    #It also took a long time to get working and I don't want to break it.
     def predict(self, file):
         with open(file, 'r') as data:
             with open("POS.test.out", 'w') as outp:
