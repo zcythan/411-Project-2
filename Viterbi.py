@@ -1,12 +1,13 @@
 #Insert Generic comment about system libraries being allowed
 import sys
+import math
 
 class Viterbi:
 
     def __init__(self, file):
         self.__file = file
-        #Only read the file one time.
-        self.__wordTagCounts, self.__tagCounts, self.__tagForTagCounts, self.__startTagCounts, self.__lineCount = self.__getCounts()  # CHANGE THIS TO PRIVATE
+        #Only read the file one time, reference the dictionaries for the rest.
+        self.__wordTagCounts, self.__tagCounts, self.__tagForTagCounts, self.__startTagCounts, self.__lineCount = self.__getCounts()
         self.__tagsForWords = self.__getTagsForWords()
 
     #Calculates the probability a tag starts a sentence,
@@ -22,11 +23,13 @@ class Viterbi:
 
     # Calculates the probability of word given a tag
     def __wordGivenTag(self, word, tag):
+        if (word+tag) not in self.__wordTagCounts:
+            return -math.inf
         return self.__wordTagCounts.get(word+tag, 0)/self.__tagCounts.get(tag, 0)
 
     def predict(self, file):
-        with open(self.__file, 'r') as data:
-            with open(file, 'w') as outp:
+        with open(file, 'r') as data:
+            with open("POS.test.out", 'w') as outp:
                 for line in data:
                     score = {}
                     backPtr = {}
@@ -35,58 +38,64 @@ class Viterbi:
                     words = []
                     #Cleaning
                     for part in wordsRaw:
-                        full = self.__removeExtra(part)
-                        word = full[0:full.rfind('/')].lower()
+                        word = part[0:part.rfind('/')]
                         words.append(word)
-                    i = 0
+                    w = 0
                     for word in words:
-                        # First half cast to lowercase, reduce duplicates.
-                        potTags = self.__tagsForWords.get(word, 0)
+                        potTags = self.__tagsForWords.get(word, ["/UKN"])
                         # Initialization
-                        score[i] = []
-                        if i == 0:
+                        score[(potTags[0], w)] = -1
+                        backPtr[(potTags[0], w)] = ""
+                        if w == 0:
                             for tag in potTags:
-                                score[0].append((tag, self.__wordGivenTag(word, tag) * self.__tagStarts(tag)))
-                            backPtr[0] = 0
-                            i = 1
+                                score[(tag, w)] = self.__wordGivenTag(word, tag) * self.__tagStarts(tag)
+                                backPtr[(tag, w)] = 0
+                            w = 1
                             continue
                         # Iteration step
                         for tag in potTags:
+                            index = (tag, w)
                             # max was reserved :(
-                            maxNum = 0
+                            maxScore = (-math.inf)
                             goodTag = ""
-                            for prevTag, prevScore in score[i - 1]:
-                                temp = prevScore * self.__tagGivenTag(tag, prevTag)
-                                if temp > maxNum:
+                            #given word -1, find that word, get list of potential tags for that word, score[iterator for all prevword tags][w-1 index]
+                            prevWord = words[w-1]
+                            prevTags = self.__tagsForWords.get(prevWord, ["/UKN"])
+                            for prevTag in prevTags:
+                                if prevTag == "/UKN":
                                     goodTag = prevTag
-                                    maxNum = temp
-                            score.setdefault(i, []).append((tag, self.__wordGivenTag(word, tag) * maxNum))
-                            #backPtr[i] = goodTag
-                            if i not in backPtr:
-                                backPtr[i] = {}
-                            backPtr[i][tag] = goodTag
-                            i += 1
-                    # Sequence Identification
-                    lastScores = score[len(words)-1]
-                    lastTag = ""
-                    lastScore = 0
-                    for t, s in lastScores:
-                        lastTag = t
-                        if s > lastScore:
-                            lastScore = s
-                            lastTag = t
-                    seq.append(lastTag)
-                    curTag = lastTag
-                    for i in range(len(words) - 1, 0, -1):
-                        curTag = backPtr[i][curTag]
-                        seq.append(curTag)
-                    '''
-                    for tag in backPtr:
-                        if tag != 0:
-                            seq.append(tag)
-                            '''
-                    seq.reverse()
-                    outp.write(' '.join(seq))
+                                    maxScore = 0
+                                    break
+                                temp = score[prevTag, w-1] * self.__tagGivenTag(tag, prevTag)
+                                if temp > maxScore:
+                                    goodTag = prevTag
+                                    maxScore = temp
+
+                            score[index] = self.__wordGivenTag(word, tag)*maxScore
+                            backPtr[index] = goodTag
+                        w += 1
+
+                    #Sequence Identification
+                    #0 wasn't quite small enough
+                    maxScore = -math.inf
+                    #Not sure how we were intended to handle cases the prediction word was never observed in training.
+                    #My approach is to use an "unknown" tag for these words.
+                    lastTag = "/UKN"
+                    for tag in potTags:
+                        temp = score[(tag, len(words) - 1)]
+                        if temp > maxScore:
+                            maxScore = temp
+                            lastTag = tag
+                    seq.insert(0, lastTag)
+                    for w in range(len(words) - 2, -1, -1):  # Start from the penultimate word and go backwards
+                        bestTag = backPtr[(lastTag, w + 1)]
+                        seq.insert(0, bestTag)  # Add this tag to the beginning of the sequence
+                        lastTag = bestTag  # Update for the next iteration
+
+                    for i in range(len(seq)):
+                        outp.write(words[i] + seq[i] + " ")
+                        if i == (len(seq)-1):
+                            outp.write("\n")
 
     #Makes list of tags a word has been seen as.
     def __getTagsForWords(self):
@@ -133,8 +142,7 @@ class Viterbi:
                 for word in words:
                     if '/' in word:
                         tag = self.__removeExtra(word)
-                        #First half cast to lowercase, reduce duplicates.
-                        tag = tag[0:tag.rfind('/')].lower() + tag[tag.rfind('/'):]
+                        tag = tag[0:tag.rfind('/')] + tag[tag.rfind('/'):]
                         #Count occurrence of tags given a word.
                         if tag in wordTagDict:
                             wordTagDict[tag] += 1
@@ -163,6 +171,27 @@ class Viterbi:
 
         return wordTagDict, tagDict, tag4TagDict, firstTagDict, lineCount
 
+    @staticmethod
+    def getAccuracy(file):
+        correct = 0
+        wrong = 0
+        with open(file, 'r') as orig:
+            with open("POS.test.out", 'r') as pred:
+                origLines = orig.readlines()
+                predLines = pred.readlines()
+                for i in range(min(len(origLines), len(predLines))):
+                    origLine = origLines[i].split()
+                    predLine = predLines[i].split()
+                    #Not always the same length, use the smallest.
+                    for j in range(min(len(origLine), len(predLine))):
+                        if origLine[j] == predLine[j]:
+                            correct += 1
+                        else:
+                            wrong += 1
+
+                    wrong += max(len(origLine), len(predLine)) - min(len(origLine), len(predLine))  # really double check this bc i kind of suck at math
+
+        return format((correct / (correct + wrong)) * 100, '.2f')
 
 def main():
     if len(sys.argv) < 3:
@@ -170,9 +199,9 @@ def main():
         return
     # train call
     # predict call
-    test = Viterbi(sys.argv[1])
-    #test.removeTags()
-    test.predict(sys.argv[2])
+    AI = Viterbi(sys.argv[1])
+    AI.predict(sys.argv[2])
+    print(AI.getAccuracy(sys.argv[2]))
 
 
 if __name__ == "__main__":
