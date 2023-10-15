@@ -28,7 +28,6 @@ class Viterbi:
         return self.__wordTagCounts.get(word+tag, 0)/self.__tagCounts.get(tag, 0)
 
     #I despise how long this function is, but it's more effort than it's worth to split it up.
-    #It also took a long time to get working and I don't want to break it.
     def predict(self, file):
         with open(file, 'r') as data:
             with open("POS.test.out", 'w') as outp:
@@ -44,7 +43,10 @@ class Viterbi:
                         words.append(word)
                     w = 0
                     for word in words:
-                        potTags = self.__tagsForWords.get(word, ["/UKN"])
+                        #Not sure how we were intended to handle cases where the prediction word was never observed in training.
+                        #My idea is to use an "unknown" tag for these words.
+                        #"/UNK" does not seem to appear in the training set so there shouldn't be any collisions.
+                        potTags = self.__tagsForWords.get(word, ["/UNK"])
                         # Initialization
                         score[(potTags[0], w)] = -1
                         backPtr[(potTags[0], w)] = ""
@@ -61,11 +63,9 @@ class Viterbi:
                             maxScore = (-math.inf)
                             goodTag = ""
                             prevWord = words[w-1]
-                            #Not sure how we were intended to handle cases the prediction word was never observed in training.
-                            #My approach is to use an "unknown" tag for these words.
-                            prevTags = self.__tagsForWords.get(prevWord, ["/UKN"])
+                            prevTags = self.__tagsForWords.get(prevWord, ["/UNK"])
                             for prevTag in prevTags:
-                                if prevTag == "/UKN":
+                                if prevTag == "/UNK":
                                     goodTag = prevTag
                                     maxScore = 0
                                     break
@@ -82,7 +82,7 @@ class Viterbi:
                     #0 wasn't quite small enough
                     maxScore = -math.inf
                     #Using our unknown tag for placeholder.
-                    lastTag = "/UKN"
+                    lastTag = "/UNK"
                     for tag in potTags:
                         temp = score[(tag, len(words) - 1)]
                         if temp > maxScore:
@@ -171,6 +171,7 @@ class Viterbi:
             with open("POS.test.out", 'r') as pred:
                 origLines = orig.readlines()
                 predLines = pred.readlines()
+                #ensure smallest used incase length isn't equal.
                 for i in range(min(len(origLines), len(predLines))):
                     origLine = origLines[i].split()
                     predLine = predLines[i].split()
@@ -180,9 +181,6 @@ class Viterbi:
                             correct += 1
                         else:
                             wrong += 1
-
-                    wrong += max(len(origLine), len(predLine)) - min(len(origLine), len(predLine))  # really double check this bc i kind of suck at math
-
         return format((correct / (correct + wrong)) * 100, '.2f')
 
 def main():
