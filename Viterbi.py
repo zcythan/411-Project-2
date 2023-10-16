@@ -24,7 +24,7 @@ class Viterbi:
     # Calculates the probability of word given a tag
     def __wordGivenTag(self, word, tag):
         if (word+tag) not in self.__wordTagCounts:
-            return -math.inf
+            return 0
         return self.__wordTagCounts.get(word+tag, 0)/self.__tagCounts.get(tag, 0)
 
     #I despise how long this function is, but it's more effort than it's worth to split it up.
@@ -59,7 +59,6 @@ class Viterbi:
                         # Iteration step
                         for tag in potTags:
                             index = (tag, w)
-                            #max was reserved :(
                             maxScore = (-math.inf)
                             goodTag = ""
                             prevWord = words[w-1]
@@ -77,7 +76,6 @@ class Viterbi:
                             score[index] = self.__wordGivenTag(word, tag)*maxScore
                             backPtr[index] = goodTag
                         w += 1
-
                     #Sequence Identification
                     #0 wasn't quite small enough
                     maxScore = -math.inf
@@ -92,7 +90,7 @@ class Viterbi:
                     #Iterating from second to last word backwards
                     for w in range(len(words) - 2, -1, -1):
                         bestTag = backPtr[(lastTag, w + 1)]
-                        #populate the seq backwards, hope that is acceptable.
+                        #populate the seq backwards instead of reversing it, hope that is acceptable.
                         seq.insert(0, bestTag)
                         lastTag = bestTag
 
@@ -175,7 +173,6 @@ class Viterbi:
                 for i in range(min(len(origLines), len(predLines))):
                     origLine = origLines[i].split()
                     predLine = predLines[i].split()
-                    #Not always the same length, use the smallest.
                     for j in range(min(len(origLine), len(predLine))):
                         if origLine[j] == predLine[j]:
                             correct += 1
